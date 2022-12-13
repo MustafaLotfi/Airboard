@@ -105,7 +105,6 @@ class Write():
 		self.finalizing()
 
 
-
 	def get_frames(self):
 		self.frame_size = self.frame.shape[1], self.frame.shape[0]
 		self.frame = cv2.flip(self.frame, 1)
@@ -224,8 +223,4 @@ class Write():
 		self.cap.release()
 		cv2.destroyAllWindows()
 		self.video.release()
-
-
-
-
 
