@@ -8,8 +8,29 @@ import os
 INDEX_FINGER_ID = 8
 THUMB_ID = 4
 FINGERS_MIN_DIST = 0.05
-SAVING_FOLDER = "media"
+CIRCLE_SIZE = 5
+FONT_SIZE = 1
+SAVING_FOLDER = "files"
+PEN_REG = ((0.0, 0.15), (0.1, 0.2))
+ERASER_REG = ((0.0, 0.15), (0.3, 0.4))
+COLOR1_REG = ((0.0, 0.15), (0.5, 0.6))
+COLOR2_REG = ((0.0, 0.15), (0.7, 0.8))
 
+PEN_CLR = (0, 0, 0)
+ERASER_CLR = (0, 0, 0)
+COLOR1_CLR = (255, 255, 0)
+COLOR2_CLR = (0, 255, 255)
+
+PEN_TXT = "PEN"
+ERASER_TXT = "ERS"
+COLOR1_TXT = "CLR1"
+COLOR2_TXT = "CLR2"
+
+regions = (PEN_REG, ERASER_REG, COLOR1_REG, COLOR2_REG)
+colors = (PEN_CLR, ERASER_CLR, COLOR1_CLR, COLOR2_CLR)
+texts = (PEN_TXT, ERASER_TXT, COLOR1_TXT, COLOR2_TXT)
+
+ERASE_AREA = (0.05, 0.05)
 
 def create_dir(name):
 	exist = False
@@ -44,6 +65,9 @@ class Write():
 	def __init__(self, camera_id=0):
 		self.hands = mp.solutions.hands.Hands(min_detection_confidence=0.5)
 
+		self.color = COLOR1_CLR
+		self.erase_or_pen = 1
+
 		self.cap = cv2.VideoCapture(camera_id)
 
 		self.app_running = True
@@ -64,9 +88,15 @@ class Write():
 			if ret:
 				self.get_frames()
 
+				self.frame = self.add_default_shapes(self.frame)
+
 				self.get_landmarks()
 
-				self.add_landmarks2list()
+				self.calc_fingers_features()
+
+				self.check_modes()
+
+				self.add_remove_landmarks()
 
 				self.add_landmarks2img()
 				
@@ -80,6 +110,20 @@ class Write():
 		self.frame_size = self.frame.shape[1], self.frame.shape[0]
 		self.frame = cv2.flip(self.frame, 1)
 		self.frame_rgb = cv2.cvtColor(self.frame, cv2.COLOR_BGR2RGB)
+
+
+	@staticmethod
+	def add_default_shapes(frame):
+		frs = frame.shape[1], frame.shape[0]
+		for (reg, clr, txt) in zip(regions, colors, texts):
+			p1 = int(reg[0][0] * frs[0]), int(reg[1][0] * frs[1])
+			p2 = int(reg[0][1] * frs[0]), int(reg[1][1] * frs[1])
+			cv2.rectangle(frame, p1, p2, clr, 2)
+
+			p = int((reg[0][0] + 0.02) * frs[0]), int((reg[1][0] + 0.07) * frs[1])
+			cv2.putText(frame, txt, p, cv2.FONT_HERSHEY_SIMPLEX, FONT_SIZE, clr, 2)
+
+		return frame
 
 
 	def show_save_frames(self):
@@ -103,24 +147,72 @@ class Write():
 			self.landmarks = np.array(
 				[[point.x, point.y, point.z] for point in lms[0].landmark])
 
+
+	def calc_fingers_features(self):
+		if self.found:
+			index_finger = self.landmarks[INDEX_FINGER_ID, :2]
+			thumb = self.landmarks[THUMB_ID, :2]
+
+			self.fingers_middle = (index_finger + thumb) / 2
+
+			self.fingers_dist = self.calc_dist(index_finger, thumb)
+
+			self.are_close = self.fingers_dist < FINGERS_MIN_DIST
+
 		
-	def add_landmarks2list(self):
-			if self.found:
-				index_finger = self.landmarks[INDEX_FINGER_ID, :2]
-				thumb = self.landmarks[THUMB_ID, :2]
+	def add_remove_landmarks(self):
+		if self.found and self.are_close and self.write_screen:
+			if self.erase_or_pen == 1:
+				self.points_list.append(self.fingers_middle)
+			else:
+				points = np.array(self.points_list)
+				del_points_ids = []
+				for (i, pnt) in enumerate(points):
+					cns1 = (self.fingers_middle[0] - ERASE_AREA[0]/2) < pnt[0] < (self.fingers_middle[0] + ERASE_AREA[0]/2)
+					cns2 = (self.fingers_middle[1] - ERASE_AREA[1]/2) < pnt[1] < (self.fingers_middle[1] + ERASE_AREA[1]/2)
+					if cns1 and cns2:
+						del_points_ids.append(i)
 
-				fingers_middle = (index_finger + thumb) / 2
+				points = np.delete(points, del_points_ids, 0)
 
-				fingers_dist = self.calc_dist(index_finger, thumb)
+				self.points_list = list(points)
 
-				if fingers_dist < FINGERS_MIN_DIST:
-					self.points_list.append(fingers_middle)
+
+	def check_modes(self):
+		if self.found:
+			self.write_screen = True
+
+			cns1 = regions[0][0][0] < self.fingers_middle[0] < regions[0][0][1]
+			cns2 = regions[0][1][0] < self.fingers_middle[1] < regions[0][1][1]
+			if self.are_close and cns1 and cns2:
+				self.write_screen = False
+				self.erase_or_pen = 1
+
+			cns1 = regions[1][0][0] < self.fingers_middle[0] < regions[1][0][1]
+			cns2 = regions[1][1][0] < self.fingers_middle[1] < regions[1][1][1]
+			if self.are_close and cns1 and cns2:
+				self.write_screen = False
+				self.erase_or_pen = 0
+
+			cns1 = regions[2][0][0] < self.fingers_middle[0] < regions[2][0][1]
+			cns2 = regions[2][1][0] < self.fingers_middle[1] < regions[2][1][1]
+			if self.are_close and cns1 and cns2:
+				self.write_screen = False
+				self.color = COLOR1_CLR
+				self.erase_or_pen = 1
+
+			cns1 = regions[3][0][0] < self.fingers_middle[0] < regions[3][0][1]
+			cns2 = regions[3][1][0] < self.fingers_middle[1] < regions[3][1][1]
+			if self.are_close and cns1 and cns2:
+				self.write_screen = False
+				self.color = COLOR2_CLR
+				self.erase_or_pen = 1
 
 
 	def add_landmarks2img(self):
 		for point in self.points_list:
 			fr_point = (point * self.frame_size).astype(np.uint32)
-			cv2.circle(self.frame, fr_point, 5, (255, 255, 0), cv2.FILLED)
+			cv2.circle(self.frame, fr_point, CIRCLE_SIZE, self.color, cv2.FILLED)
 
 
 	@staticmethod
