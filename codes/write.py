@@ -100,7 +100,7 @@ class Write():
 
 				self.frame = self.add_default_shapes(self.frame)
 
-				self.get_landmarks()		# boxes in left of the scene
+				self.get_landmarks()
 
 				self.calc_fingers_features()
 
@@ -122,6 +122,7 @@ class Write():
 
 
 	def add_default_shapes(self, frame):
+		# boxes in left of the scene
 		frs = frame.shape[1], frame.shape[0]
 		i = 0
 		for (reg, clr, txt) in zip(regions, colors, texts):
@@ -152,6 +153,7 @@ class Write():
 
 
 	def get_landmarks(self):
+		# get hand landmarks
 		self.found = False
 
 		lms = self.hands.process(self.frame_rgb).multi_hand_landmarks
