@@ -7,7 +7,9 @@ import os
 
 INDEX_FINGER_ID = 8
 THUMB_ID = 4
-FINGERS_MIN_DIST = 0.05
+FINGERS_MIN_DIST = 0.05			# Due to image width and height equal to 1.0
+# if the thumb and index finger distance be Lower than this value, it will write on screen
+
 CIRCLE_SIZE = 5
 FONT_SIZE = 1
 SAVING_FOLDER = "files"
@@ -32,6 +34,8 @@ texts = (PEN_TXT, ERASER_TXT, COLOR1_TXT, COLOR2_TXT)
 
 ERASE_AREA = (0.05, 0.05)
 
+
+# Create a directory with given name
 def create_dir(name):
 	exist = False
 	current_dir = os.path.dirname(__file__) + "/../"
@@ -45,6 +49,7 @@ def create_dir(name):
 		os.mkdir(SAVING_FOLDER)
 
 
+# get name of saved video
 def get_new_file_number(name):
 	fol_dir = os.path.dirname(__file__) + "/../" + name
 	files_name = os.listdir(fol_dir)
@@ -63,6 +68,7 @@ def get_new_file_number(name):
 
 class Write():
 	def __init__(self, camera_id=0):
+		# find hands landmarks with this model
 		self.hands = mp.solutions.hands.Hands(min_detection_confidence=0.5)
 
 		self.color = COLOR1_CLR
@@ -72,17 +78,19 @@ class Write():
 
 		self.app_running = True
 
-		self.points_list = []
+		self.points_list = []		# All points that will be project on screen in each frame
 
-		self.bolds = [1, 0, 1, 0]
+		self.bolds = [1, 0, 1, 0]		# bolding rectangles
 			
 		create_dir(SAVING_FOLDER)
 		new_file_number = get_new_file_number(SAVING_FOLDER)
 
+		# for saving video in files folder
 		self.video = cv2.VideoWriter(SAVING_FOLDER + "/" + new_file_number + ".avi",
 			cv2.VideoWriter_fourcc(*"MJPG"), 14, (640, 480))
 
 
+	# A loop that commands and functions will run in every frames
 	def running(self):
 		while self.cap.isOpened() and self.app_running:
 			ret, self.frame = self.cap.read()
@@ -92,13 +100,13 @@ class Write():
 
 				self.frame = self.add_default_shapes(self.frame)
 
-				self.get_landmarks()
+				self.get_landmarks()		# boxes in left of the scene
 
 				self.calc_fingers_features()
 
 				self.check_modes()
 
-				self.add_remove_landmarks()
+				self.add_remove_points()
 
 				self.add_landmarks2img()
 				
@@ -156,6 +164,7 @@ class Write():
 
 
 	def calc_fingers_features(self):
+		# calculate thumb and index finger distances and their middle line position
 		if self.found:
 			index_finger = self.landmarks[INDEX_FINGER_ID, :2]
 			thumb = self.landmarks[THUMB_ID, :2]
@@ -167,7 +176,8 @@ class Write():
 			self.are_close = self.fingers_dist < FINGERS_MIN_DIST
 
 		
-	def add_remove_landmarks(self):
+	def add_remove_points(self):
+		# add or remove points from points_list, due to pen or eraser satete
 		if self.found and self.are_close and self.write_screen:
 			if self.pen_or_erase == 0:
 				self.points_list.append(self.fingers_middle)
@@ -186,6 +196,7 @@ class Write():
 
 
 	def check_modes(self):
+		# Extract the mode (which one of the left boxes have been selected)
 		if self.found:
 			self.write_screen = True
 
