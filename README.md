@@ -5,6 +5,9 @@ opencv and mediapipe were used for working with frames and finding hand landmark
 mediapipe light models, the project can work realtime.
 
 ## Preview
+<div align="left">
+  <img src="https://github.com/MustafaLotfi/Write-On-Air/blob/main/docs/images/preview.gif">
+</div>
 
 ## How to run
 Clone the repository:
