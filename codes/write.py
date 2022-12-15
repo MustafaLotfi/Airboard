@@ -66,13 +66,15 @@ class Write():
 		self.hands = mp.solutions.hands.Hands(min_detection_confidence=0.5)
 
 		self.color = COLOR1_CLR
-		self.erase_or_pen = 1
+		self.pen_or_erase = 0
 
 		self.cap = cv2.VideoCapture(camera_id)
 
 		self.app_running = True
 
 		self.points_list = []
+
+		self.bolds = [1, 0, 1, 0]
 			
 		create_dir(SAVING_FOLDER)
 		new_file_number = get_new_file_number(SAVING_FOLDER)
@@ -111,16 +113,22 @@ class Write():
 		self.frame_rgb = cv2.cvtColor(self.frame, cv2.COLOR_BGR2RGB)
 
 
-	@staticmethod
-	def add_default_shapes(frame):
+	def add_default_shapes(self, frame):
 		frs = frame.shape[1], frame.shape[0]
+		i = 0
 		for (reg, clr, txt) in zip(regions, colors, texts):
+			thickness = 2
+			if self.bolds[i] == 1:
+				thickness = 4
+
 			p1 = int(reg[0][0] * frs[0]), int(reg[1][0] * frs[1])
 			p2 = int(reg[0][1] * frs[0]), int(reg[1][1] * frs[1])
-			cv2.rectangle(frame, p1, p2, clr, 2)
+			cv2.rectangle(frame, p1, p2, clr, thickness)
 
 			p = int((reg[0][0] + 0.02) * frs[0]), int((reg[1][0] + 0.07) * frs[1])
 			cv2.putText(frame, txt, p, cv2.FONT_HERSHEY_SIMPLEX, FONT_SIZE, clr, 2)
+
+			i += 1
 
 		return frame
 
@@ -161,7 +169,7 @@ class Write():
 		
 	def add_remove_landmarks(self):
 		if self.found and self.are_close and self.write_screen:
-			if self.erase_or_pen == 1:
+			if self.pen_or_erase == 0:
 				self.points_list.append(self.fingers_middle)
 			else:
 				points = np.array(self.points_list)
@@ -184,28 +192,40 @@ class Write():
 			cns1 = regions[0][0][0] < self.fingers_middle[0] < regions[0][0][1]
 			cns2 = regions[0][1][0] < self.fingers_middle[1] < regions[0][1][1]
 			if self.are_close and cns1 and cns2:
+				self.bolds[0] = 1
+				self.bolds[1] = 0
 				self.write_screen = False
-				self.erase_or_pen = 1
+				self.pen_or_erase = 0
 
 			cns1 = regions[1][0][0] < self.fingers_middle[0] < regions[1][0][1]
 			cns2 = regions[1][1][0] < self.fingers_middle[1] < regions[1][1][1]
 			if self.are_close and cns1 and cns2:
+				self.bolds[0] = 0
+				self.bolds[1] = 1
 				self.write_screen = False
-				self.erase_or_pen = 0
+				self.pen_or_erase = 1
 
 			cns1 = regions[2][0][0] < self.fingers_middle[0] < regions[2][0][1]
 			cns2 = regions[2][1][0] < self.fingers_middle[1] < regions[2][1][1]
 			if self.are_close and cns1 and cns2:
+				self.bolds[0] = 1
+				self.bolds[1] = 0
+				self.bolds[2] = 1
+				self.bolds[3] = 0
 				self.write_screen = False
 				self.color = COLOR1_CLR
-				self.erase_or_pen = 1
+				self.pen_or_erase = 0
 
 			cns1 = regions[3][0][0] < self.fingers_middle[0] < regions[3][0][1]
 			cns2 = regions[3][1][0] < self.fingers_middle[1] < regions[3][1][1]
 			if self.are_close and cns1 and cns2:
+				self.bolds[0] = 1
+				self.bolds[1] = 0
+				self.bolds[2] = 0
+				self.bolds[3] = 1
 				self.write_screen = False
 				self.color = COLOR2_CLR
-				self.erase_or_pen = 1
+				self.pen_or_erase = 0
 
 
 	def add_landmarks2img(self):
