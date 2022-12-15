@@ -30,4 +30,4 @@ Make sure your webcam is connected and works, then run main.py:
 
 `python main.py`
 
-The video will save in "files" folder
+Press q to close the app. The video will save in "files" folder
