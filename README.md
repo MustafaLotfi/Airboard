@@ -22,7 +22,7 @@ On windows:
 
 `.\venv\Scripts\activate`
 
-Install required packages:
+Go to project folder, then install required packages:
 
 `pip install -r requirements.txt`
 
